@@ -152,7 +152,17 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
 
   let upstream: Response;
   try {
-    upstream = await fetch(urlStr, { headers: forwardHeaders });
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers: forwardHeaders,
+    };
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      fetchOptions.body = req.body;
+      // Also need to set duplex to 'half' for node fetch in edge environment sometimes, but standard edge fetch should be fine.
+      // @ts-ignore - Some edge environments require this for streaming bodies
+      fetchOptions.duplex = 'half';
+    }
+    upstream = await fetch(urlStr, fetchOptions);
   } catch (e) {
     console.error("Fetch error:", e);
     return new Response("Failed to fetch upstream", { status: 502, headers: corsHeaders });
