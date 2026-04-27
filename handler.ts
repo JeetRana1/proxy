@@ -157,10 +157,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
       headers: forwardHeaders,
     };
     if (req.method !== "GET" && req.method !== "HEAD") {
-      fetchOptions.body = req.body;
-      // Also need to set duplex to 'half' for node fetch in edge environment sometimes, but standard edge fetch should be fine.
-      // @ts-ignore - Some edge environments require this for streaming bodies
-      fetchOptions.duplex = 'half';
+      fetchOptions.body = await req.arrayBuffer();
     }
     upstream = await fetch(urlStr, fetchOptions);
   } catch (e) {
