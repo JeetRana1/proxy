@@ -1,0 +1,14 @@
+{
+  "name": "shirna-proxy-v2",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "bun run proxy.ts"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.49",
+    "elysia": "^1.4.28"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.11"
+  }
+}
