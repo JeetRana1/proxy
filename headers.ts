@@ -41,8 +41,13 @@ export function buildForwardHeaders(
   requestHeaders: Headers,
   template: DomainTemplate
 ): Record<string, string> {
+  const incomingOrigin = requestHeaders.get("X-Forward-Origin") ?? requestHeaders.get("Origin");
+  const incomingReferer = requestHeaders.get("X-Forward-Referer") ?? requestHeaders.get("Referer");
+
   const forwardHeaders: Record<string, string> = {
     "User-Agent": requestHeaders.get("User-Agent") ?? "BunProxy/1.0",
+    ...(incomingOrigin ? { Origin: incomingOrigin } : {}),
+    ...(incomingReferer ? { Referer: incomingReferer } : {}),
     ...(template.forwardHeaders ?? {}),
   };
 
