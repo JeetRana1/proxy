@@ -43,11 +43,13 @@ export function buildForwardHeaders(
 ): Record<string, string> {
   const incomingOrigin = requestHeaders.get("X-Forward-Origin") ?? requestHeaders.get("Origin");
   const incomingReferer = requestHeaders.get("X-Forward-Referer") ?? requestHeaders.get("Referer");
+  const incomingRange = requestHeaders.get("Range");
 
   const forwardHeaders: Record<string, string> = {
     "User-Agent": requestHeaders.get("User-Agent") ?? "BunProxy/1.0",
     ...(incomingOrigin ? { Origin: incomingOrigin } : {}),
     ...(incomingReferer ? { Referer: incomingReferer } : {}),
+    ...(incomingRange ? { Range: incomingRange } : {}),
     ...(template.forwardHeaders ?? {}),
   };
 
@@ -73,9 +75,15 @@ export function buildResponseHeaders(
   const etag = upstream.headers.get("ETag");
   const lastModified = upstream.headers.get("Last-Modified");
   const cacheControl = upstream.headers.get("Cache-Control");
+  const contentLength = upstream.headers.get("Content-Length");
+  const contentRange = upstream.headers.get("Content-Range");
+  const acceptRanges = upstream.headers.get("Accept-Ranges");
   if (etag) responseHeaders["ETag"] = etag;
   if (lastModified) responseHeaders["Last-Modified"] = lastModified;
   if (cacheControl) responseHeaders["Cache-Control"] = cacheControl;
+  if (contentLength) responseHeaders["Content-Length"] = contentLength;
+  if (contentRange) responseHeaders["Content-Range"] = contentRange;
+  if (acceptRanges) responseHeaders["Accept-Ranges"] = acceptRanges;
 
   return responseHeaders;
 }
