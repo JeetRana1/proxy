@@ -7,6 +7,12 @@ export interface DomainRule {
 
 export const domainRules: DomainRule[] = [
   {
+    patterns: [/(?:^|\.)(?:as-cdn\d+|z\d+|as2|as-api)\.(?:top|pro|ac|xyz|link|click|net|cc|org)$/i],
+    origin: "https://animesalt.ac",
+    referer: "https://animesalt.ac/",
+    customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
+  },
+  {
     patterns: [/loffe414wil\.com$/i],
     origin: "https://vegamovies.nf",
     referer: "https://vegamovies.nf/",
