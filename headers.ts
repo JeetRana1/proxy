@@ -46,7 +46,12 @@ export function buildForwardHeaders(
   const incomingRange = requestHeaders.get("Range");
 
   const forwardHeaders: Record<string, string> = {
-    "User-Agent": requestHeaders.get("User-Agent") ?? "BunProxy/1.0",
+    "User-Agent": requestHeaders.get("User-Agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    Accept: requestHeaders.get("Accept") || "*/*",
+    "Accept-Language": requestHeaders.get("Accept-Language") || "en-US,en;q=0.9",
+    "Sec-Fetch-Dest": requestHeaders.get("Sec-Fetch-Dest") || "empty",
+    "Sec-Fetch-Mode": requestHeaders.get("Sec-Fetch-Mode") || "cors",
+    "Sec-Fetch-Site": requestHeaders.get("Sec-Fetch-Site") || "cross-site",
     ...(incomingOrigin ? { Origin: incomingOrigin } : {}),
     ...(incomingReferer ? { Referer: incomingReferer } : {}),
     ...(incomingRange ? { Range: incomingRange } : {}),
