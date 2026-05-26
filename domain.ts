@@ -312,6 +312,7 @@ export const domainRules: DomainRule[] = [
   },
   {
     patterns: [
+      /(?:^|\.)speedsterwave\.app$/i,
       /cloudburst99\.xyz$/i,
       /frostywinds73\.pro$/i,
       /stormwatch39\.live$/i,
