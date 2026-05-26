@@ -120,6 +120,12 @@ export const domainRules: DomainRule[] = [
     referer: "https://anime.uniquestream.net/",
   },
   {
+    patterns: [/\.r66nv9ed\.com$/i, /\.sprintcdn\./i],
+    origin: "https://f16px.com",
+    referer: "https://f16px.com/",
+    customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
+  },
+  {
     patterns: [/\.raffaellocdn\.net$/i, /\.feetcdn\.com$/i, /clearskydrift45\.site$/i],
     origin: "https://kerolaunochan.online",
     referer: "https://kerolaunochan.online/",
