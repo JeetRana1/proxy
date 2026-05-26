@@ -123,7 +123,13 @@ export const domainRules: DomainRule[] = [
     patterns: [/\.r66nv9ed\.com$/i, /\.sprintcdn\./i],
     origin: "https://f16px.com",
     referer: "https://f16px.com/",
-    customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
+    customHeaders: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      Accept: "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    },
   },
   {
     patterns: [/\.raffaellocdn\.net$/i, /\.feetcdn\.com$/i, /clearskydrift45\.site$/i],
