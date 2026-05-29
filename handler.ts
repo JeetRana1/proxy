@@ -52,7 +52,7 @@ function isM3u8(contentType: string | null, url: string): boolean {
   return lowerUrl.includes(".m3u8") || lowerUrl.includes(".m3u") || lowerUrl.includes("/m3u8");
 }
 
-const TEXT_LIKE_TYPES = ["text/", "application/javascript", "application/json", "application/octet-stream"];
+const TEXT_LIKE_TYPES = ["text/", "application/javascript", "application/json"];
 
 function couldBeTextContent(contentType: string | null): boolean {
   if (!contentType) return true;
@@ -188,6 +188,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
     const text = await upstream.text();
     const rewritten = rewriteM3u8(text, urlStr, proxyBase);
     responseHeaders["Content-Type"] = "application/vnd.apple.mpegurl";
+    delete responseHeaders["Content-Length"];
     return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
   }
 
@@ -198,6 +199,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
       const text = new TextDecoder().decode(buf);
       const rewritten = rewriteM3u8(text, urlStr, proxyBase);
       responseHeaders["Content-Type"] = "application/vnd.apple.mpegurl";
+      delete responseHeaders["Content-Length"];
       return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
     }
     return new Response(buf, { status: upstream.status, headers: responseHeaders });

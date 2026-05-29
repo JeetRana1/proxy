@@ -13,6 +13,18 @@ export const domainRules: DomainRule[] = [
     customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
   },
   {
+    patterns: [/^swiftstream\.top$/i, /(?:^|\.)swiftstream\.top$/i],
+    origin: "https://animetsu.live",
+    referer: "https://animetsu.live/",
+    customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
+  },
+  {
+    patterns: [/(?:^|\.)nightspeedster\.app$/i],
+    origin: "https://www.vidking.net",
+    referer: "https://www.vidking.net/",
+    customHeaders: { "cache-control": "no-cache", pragma: "no-cache" },
+  },
+  {
     patterns: [/loffe414wil\.com$/i],
     origin: "https://vegamovies.nf",
     referer: "https://vegamovies.nf/",
