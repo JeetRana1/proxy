@@ -1,6 +1,6 @@
 import { getDomainTemplate, buildForwardHeaders, buildResponseHeaders, corsHeaders } from "./headers";
 
-function rewriteM3u8(content: string, baseUrl: string, proxyBase: string): string {
+function rewriteM3u8(content: string, baseUrl: string, proxyBase: string, proxyMedia: boolean): string {
   const base = new URL(baseUrl);
   const lines = content.split("\n");
 
@@ -18,9 +18,9 @@ function rewriteM3u8(content: string, baseUrl: string, proxyBase: string): strin
         if (!originalUri) return match;
 
         const absolute = toAbsolute(originalUri, base);
-        const newUrl = absolute.startsWith(proxyBase)
-          ? absolute
-          : `${proxyBase}${encodeURIComponent(absolute)}`;
+        const newUrl = shouldProxyPlaylistUrl(absolute, proxyMedia)
+          ? toProxyUrl(absolute, proxyBase, proxyMedia)
+          : absolute;
 
         const quoteChar = quote || "";
         return `${key}=${quoteChar}${newUrl}${quoteChar}`;
@@ -30,8 +30,8 @@ function rewriteM3u8(content: string, baseUrl: string, proxyBase: string): strin
     // Segment or sub-playlist lines
     if (!trimmed.startsWith("#")) {
       const absolute = toAbsolute(trimmed, base);
-      if (absolute.startsWith(proxyBase)) return absolute;
-      return `${proxyBase}${encodeURIComponent(absolute)}`;
+      if (!shouldProxyPlaylistUrl(absolute, proxyMedia)) return absolute;
+      return toProxyUrl(absolute, proxyBase, proxyMedia);
     }
 
     return line;
@@ -41,6 +41,30 @@ function rewriteM3u8(content: string, baseUrl: string, proxyBase: string): strin
 function toAbsolute(uri: string, base: URL): string {
   if (uri.startsWith("http://") || uri.startsWith("https://")) return uri;
   return new URL(uri, base).toString();
+}
+
+function toProxyUrl(absoluteUrl: string, proxyBase: string, proxyMedia: boolean): string {
+  if (absoluteUrl.startsWith(proxyBase)) return absoluteUrl;
+  const mediaFlag = proxyMedia ? "proxyMedia=1&" : "";
+  return `${proxyBase.replace("?src=", `?${mediaFlag}src=`)}${encodeURIComponent(absoluteUrl)}`;
+}
+
+function shouldProxyPlaylistUrl(absoluteUrl: string, proxyMedia: boolean): boolean {
+  if (proxyMedia) return true;
+  const lowerUrl = absoluteUrl.toLowerCase();
+
+  // Keep sub-playlists proxied so their segment URLs can be rewritten too.
+  if (lowerUrl.includes(".m3u8") || lowerUrl.includes(".m3u") || lowerUrl.includes("/m3u8")) {
+    return true;
+  }
+
+  // Video bytes are what drive Vercel Fast Origin Transfer. Leave them direct by default.
+  if (/\.(?:ts|m4s|mp4|m4v|aac|m4a|webm|vtt)(?:[?#]|$)/i.test(lowerUrl)) {
+    return false;
+  }
+
+  // Unknown URI attributes are usually keys/tokens and are small enough to proxy.
+  return true;
 }
 
 function isM3u8(contentType: string | null, url: string): boolean {
@@ -126,7 +150,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
   // Extract all content after `src=` to support unencoded URLs with `&` query parameters
   const match = req.url.match(/[?&]src=(.*)/);
-  let src = match ? match[1] : reqUrl.searchParams.get("src");
+  let src = reqUrl.searchParams.get("src") ?? (match ? match[1] : null);
 
   if (src && src.includes("%")) {
     try {
@@ -147,6 +171,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
 
   const urlStr = url.toString();
   const proxyBase = `${reqUrl.origin}/proxy?src=`;
+  const proxyMedia = reqUrl.searchParams.get("proxyMedia") === "1";
   const template = getDomainTemplate(urlStr);
   const forwardHeaders = buildForwardHeaders(req.headers, template);
 
@@ -186,7 +211,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
   // Fast path: obvious M3U8 by content-type or URL extension
   if (isM3u8(contentType, urlStr)) {
     const text = await upstream.text();
-    const rewritten = rewriteM3u8(text, urlStr, proxyBase);
+    const rewritten = rewriteM3u8(text, urlStr, proxyBase, proxyMedia);
     responseHeaders["Content-Type"] = "application/vnd.apple.mpegurl";
     delete responseHeaders["Content-Length"];
     return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
@@ -197,7 +222,7 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
     const buf = new Uint8Array(await upstream.arrayBuffer());
     if (sniffM3u8(buf)) {
       const text = new TextDecoder().decode(buf);
-      const rewritten = rewriteM3u8(text, urlStr, proxyBase);
+      const rewritten = rewriteM3u8(text, urlStr, proxyBase, proxyMedia);
       responseHeaders["Content-Type"] = "application/vnd.apple.mpegurl";
       delete responseHeaders["Content-Length"];
       return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
