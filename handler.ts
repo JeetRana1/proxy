@@ -45,8 +45,10 @@ function toAbsolute(uri: string, base: URL): string {
 
 function toProxyUrl(absoluteUrl: string, proxyBase: string, proxyMedia: boolean): string {
   if (absoluteUrl.startsWith(proxyBase)) return absoluteUrl;
-  const mediaFlag = proxyMedia ? "proxyMedia=1&" : "";
-  return `${proxyBase.replace("?src=", `?${mediaFlag}src=`)}${encodeURIComponent(absoluteUrl)}`;
+  const base = proxyMedia
+    ? proxyBase.replace("?src=", "?proxyMedia=1&src=")
+    : proxyBase;
+  return base + encodeURIComponent(absoluteUrl);
 }
 
 function shouldProxyPlaylistUrl(absoluteUrl: string, proxyMedia: boolean): boolean {
