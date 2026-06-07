@@ -151,29 +151,36 @@ export async function handleRequest(req: Request): Promise<Response> {
 }
 
 async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
-  // Extract all content after `src=` to support unencoded URLs with `&` query parameters
-  const match = req.url.match(/[?&]src=(.*)/);
-  let src = reqUrl.searchParams.get("src") ?? (match ? match[1] : null);
+  // Extract URL parameter - supports both 'url' and 'src' for compatibility
+  // Also handles unencoded URLs with nested query parameters like ?type=hls&q=...
+  let urlParam = reqUrl.searchParams.get("url") ?? reqUrl.searchParams.get("src");
+  
+  // If not found in params, try to extract from the full request URL to capture nested queries
+  if (!urlParam) {
+    const urlMatch = req.url.match(/[?&]url=(.*)/);
+    const srcMatch = req.url.match(/[?&]src=(.*)/);
+    urlParam = urlMatch ? urlMatch[1] : (srcMatch ? srcMatch[1] : null);
+  }
 
-  if (src && src.includes("%")) {
+  if (urlParam && urlParam.includes("%")) {
     try {
-      src = decodeURIComponent(src);
+      urlParam = decodeURIComponent(urlParam);
     } catch { }
   }
 
-  if (!src) {
-    return new Response("Missing src parameter", { status: 400, headers: corsHeaders });
+  if (!urlParam) {
+    return new Response("Missing url or src parameter", { status: 400, headers: corsHeaders });
   }
 
   let url: URL;
   try {
-    url = new URL(src);
+    url = new URL(urlParam);
   } catch {
     return new Response("Invalid URL", { status: 400, headers: corsHeaders });
   }
 
   const urlStr = url.toString();
-  const proxyBase = `${reqUrl.origin}/proxy?src=`;
+  const proxyBase = `${reqUrl.origin}/proxy?url=`;
   const proxyMedia =
     reqUrl.searchParams.get("proxyMedia") === "1" ||
     /(?:^|\.)goldweather\.net$/i.test(url.hostname);
