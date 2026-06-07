@@ -41,24 +41,19 @@ export function buildForwardHeaders(
   requestHeaders: Headers,
   template: DomainTemplate
 ): Record<string, string> {
-  // Strip client-specific headers that would expose the proxy
-  const incomingOrigin = requestHeaders.get("X-Forward-Origin") ?? requestHeaders.get("Origin");
-  const incomingReferer = requestHeaders.get("X-Forward-Referer") ?? requestHeaders.get("Referer");
+  // Strip client-specific Host/Origin/Referer values that would expose the proxy.
   const incomingRange = requestHeaders.get("Range");
 
   // Build clean headers for outbound request
   const forwardHeaders: Record<string, string> = {
     // Use a clean, browser-like User-Agent to avoid detection
-    "User-Agent": requestHeaders.get("User-Agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    Accept: requestHeaders.get("Accept") || "*/*",
-    "Accept-Language": requestHeaders.get("Accept-Language") || "en-US,en;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    Accept: "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
     "Sec-Fetch-Dest": "document",
     "Sec-Fetch-Mode": "cors",
     "Sec-Fetch-Site": "cross-site",
-    // Include Origin/Referer from domain template or incoming request
-    ...(incomingOrigin ? { Origin: incomingOrigin } : {}),
-    ...(incomingReferer ? { Referer: incomingReferer } : {}),
     ...(incomingRange ? { Range: incomingRange } : {}),
     // Domain-specific headers override generic ones
     ...(template.forwardHeaders ?? {}),

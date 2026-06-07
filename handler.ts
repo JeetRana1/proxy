@@ -80,6 +80,108 @@ function isM3u8(contentType: string | null, url: string): boolean {
 }
 
 const TEXT_LIKE_TYPES = ["text/", "application/javascript", "application/json"];
+const AXIOS_MODULE = "axios";
+const SOCKS_PROXY_AGENT_MODULE = "socks-proxy-agent";
+
+function getEnv(name: string): string | undefined {
+  const runtime = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  };
+  return runtime.process?.env?.[name];
+}
+
+const TOR_PROXY_URL = getEnv("TOR_PROXY_URL") || "socks5h://127.0.0.1:9050";
+const TOR_FETCH_TIMEOUT_MS = Number(getEnv("TOR_FETCH_TIMEOUT_MS") || 15000);
+
+function isLocalRuntime(): boolean {
+  return !getEnv("VERCEL") && getEnv("NODE_ENV") !== "production";
+}
+
+function shouldUseTorForUrl(url: URL): boolean {
+  if (!isLocalRuntime()) return false;
+  if (getEnv("ENABLE_TOR_PROXY") === "false") return false;
+  const hostname = url.hostname.toLowerCase();
+  return hostname === "way.goldweather.net" || hostname.endsWith(".goldweather.net");
+}
+
+function buildJsonError(
+  status: number,
+  code: string,
+  message: string,
+  details?: Record<string, string | number | boolean>
+): Response {
+  return new Response(JSON.stringify({ success: false, code, message, ...(details ?? {}) }), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function normalizeFetchError(error: unknown): { code: string; message: string } {
+  const err = error as { code?: string; message?: string; name?: string };
+  const rawMessage = String(err?.message || "Upstream fetch failed");
+  const rawCode = String(err?.code || err?.name || "UPSTREAM_FETCH_FAILED");
+
+  if (/socks|tor|proxy|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|timeout/i.test(`${rawCode} ${rawMessage}`)) {
+    return {
+      code: "TOR_UPSTREAM_UNAVAILABLE",
+      message:
+        "Tor proxy failed while fetching the upstream HLS resource. Make sure Tor is running locally on 127.0.0.1:9050, then retry.",
+    };
+  }
+
+  return {
+    code: rawCode,
+    message: rawMessage,
+  };
+}
+
+async function fetchUpstream(req: Request, url: URL, headers: Record<string, string>): Promise<Response> {
+  if (!shouldUseTorForUrl(url)) {
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers,
+    };
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      fetchOptions.body = await req.arrayBuffer();
+    }
+    return fetch(url.toString(), fetchOptions);
+  }
+
+  const [{ default: axios }, { SocksProxyAgent }] = await Promise.all([
+    import(AXIOS_MODULE),
+    import(SOCKS_PROXY_AGENT_MODULE),
+  ]);
+  const agent = new SocksProxyAgent(TOR_PROXY_URL);
+  const body = req.method !== "GET" && req.method !== "HEAD" ? await req.arrayBuffer() : undefined;
+  const response = await axios.request({
+    url: url.toString(),
+    method: req.method,
+    headers,
+    data: body,
+    responseType: "arraybuffer",
+    timeout: TOR_FETCH_TIMEOUT_MS,
+    validateStatus: () => true,
+    proxy: false,
+    httpAgent: agent,
+    httpsAgent: agent,
+  });
+
+  const responseHeaders = new Headers();
+  for (const [key, value] of Object.entries(response.headers)) {
+    if (Array.isArray(value)) responseHeaders.set(key, value.join(", "));
+    else if (typeof value !== "undefined") responseHeaders.set(key, String(value));
+  }
+
+  return new Response(response.data, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  });
+}
 
 function couldBeTextContent(contentType: string | null): boolean {
   if (!contentType) return true;
@@ -189,17 +291,14 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
 
   let upstream: Response;
   try {
-    const fetchOptions: RequestInit = {
-      method: req.method,
-      headers: forwardHeaders,
-    };
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      fetchOptions.body = await req.arrayBuffer();
-    }
-    upstream = await fetch(urlStr, fetchOptions);
+    upstream = await fetchUpstream(req, url, forwardHeaders);
   } catch (e) {
     console.error("Fetch error:", e);
-    return new Response("Failed to fetch upstream", { status: 502, headers: corsHeaders });
+    const normalized = normalizeFetchError(e);
+    return buildJsonError(502, normalized.code, normalized.message, {
+      upstream: url.hostname,
+      tor: shouldUseTorForUrl(url),
+    });
   }
 
   if (upstream.status === 304) {
