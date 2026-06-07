@@ -7,6 +7,16 @@ export interface DomainRule {
 
 export const domainRules: DomainRule[] = [
   {
+    patterns: [/(?:^|\.)goldweather\.net$/i],
+    origin: "https://player.videasy.net",
+    referer: "https://player.videasy.net/",
+    customHeaders: {
+      Accept: "application/vnd.apple.mpegurl,application/x-mpegurl,application/octet-stream,*/*",
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    },
+  },
+  {
     patterns: [/(?:^|\.)(?:as-cdn\d+|z\d+|as2|as-api)\.(?:top|pro|ac|xyz|link|click|net|cc|org)$/i],
     origin: "https://animesalt.ac",
     referer: "https://animesalt.ac/",

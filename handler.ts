@@ -54,6 +54,7 @@ function toProxyUrl(absoluteUrl: string, proxyBase: string, proxyMedia: boolean)
 function shouldProxyPlaylistUrl(absoluteUrl: string, proxyMedia: boolean): boolean {
   if (proxyMedia) return true;
   const lowerUrl = absoluteUrl.toLowerCase();
+  if (lowerUrl.includes("goldweather.net")) return true;
 
   // Keep sub-playlists proxied so their segment URLs can be rewritten too.
   if (lowerUrl.includes(".m3u8") || lowerUrl.includes(".m3u") || lowerUrl.includes("/m3u8")) {
@@ -173,7 +174,9 @@ async function handleProxy(req: Request, reqUrl: URL): Promise<Response> {
 
   const urlStr = url.toString();
   const proxyBase = `${reqUrl.origin}/proxy?src=`;
-  const proxyMedia = reqUrl.searchParams.get("proxyMedia") === "1";
+  const proxyMedia =
+    reqUrl.searchParams.get("proxyMedia") === "1" ||
+    /(?:^|\.)goldweather\.net$/i.test(url.hostname);
   const template = getDomainTemplate(urlStr);
   const forwardHeaders = buildForwardHeaders(req.headers, template);
 
